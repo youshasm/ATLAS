@@ -1,0 +1,28 @@
+# Python environments and caches
+.venv/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+
+# Build and packaging artifacts
+**/*.egg-info/
+dist/
+build/
+
+# Generated/local data artifacts
+/data/
+/atlas_agent/data/
+/atlas_agent/atlas_agent/data/results_report.md
+
+# Generated reports and exports
+**/*_summary*.json
+**/*_rows*.csv
+**/results_report.md
+**/external_report.md
+**/memory.jsonl
+
+# Non-code project assets
+images/
+poster sample/
+*.pdf
+*.zip

@@ -1,0 +1,5 @@
+ATLAS is a memory-augmented multi-component agent.
+The planner decomposes tasks into tool-ready steps.
+The caller executes tools and captures observations.
+The summarizer produces a final answer from tool outputs.
+Shared episodic memory stores successful traces and recovered failures.

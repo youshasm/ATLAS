@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atlas-agent"
+version = "0.1.0"
+description = "ATLAS: Adaptive Tool Learning with Agent Synthesis"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2.7",
+  "python-dotenv>=1.0",
+  "rich>=13.7",
+]
+
+[project.scripts]
+atlas-agent = "atlas_agent.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["atlas_agent*"]
