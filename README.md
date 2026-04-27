@@ -38,6 +38,22 @@ Implemented architecture improvements include:
 - `atlas_agent/requirements.txt`: dependency list
 - `ATLAS.pdf`: project paper
 
+## Research Context
+
+This project is built as an implementation and extension of the EMNLP 2024 direction on multi-LLM tool learning. The ATLAS paper in this repository focuses on strengthening decomposition-based tool learners with:
+
+- shared episodic memory across components
+- adaptive routing between direct and iterative modes
+- verifier-guided recovery when tool outputs are invalid
+- reproducible benchmark and reporting pipelines
+
+### Base Paper (Primary Reference)
+
+- Small LLMs Are Weak Tool Learners: A Multi-LLM Agent (EMNLP 2024)
+	- Paper page: https://aclanthology.org/2024.emnlp-main.929/
+	- PDF: https://aclanthology.org/2024.emnlp-main.929.pdf
+	- Software attachment: https://aclanthology.org/attachments/2024.emnlp-main.929.software.zip
+
 ## LLM choice
 
 Recommended for this semester project: use `ollama` for local reproducibility and low API cost.
@@ -166,3 +182,42 @@ Supported `--source-format` values:
 Project paper is included at:
 
 - `ATLAS.pdf`
+
+The IEEE-style LaTeX source used for the paper draft is:
+
+- `paper_starter.tex` (local workspace draft)
+- `references.bib` (citation database)
+
+## Key References
+
+The following references are central to the ATLAS design and are included in `references.bib`:
+
+- Shen et al., 2024. Small LLMs Are Weak Tool Learners: A Multi-LLM Agent.
+- Yao et al., 2023. ReAct: Synergizing Reasoning and Acting in Language Models.
+- Schick et al., 2024. Toolformer: Language Models Can Teach Themselves to Use Tools.
+- Qin et al., 2024. ToolBench: Scaling Tool Learning to 16000+ Real-World APIs.
+- Li et al., 2023. API-Bank: A Comprehensive Benchmark for Tool-Augmented LLMs.
+- Shinn et al., 2024. Reflexion: Language Agents with Verbal Reinforcement Learning.
+- Park et al., 2023. MemGPT: Towards LLMs as Operating Systems.
+- Wu et al., 2023. AutoGen: Multi-Agent Conversation Framework.
+- Hong et al., 2023. MetaGPT: Multi-Agent Collaborative Framework.
+
+## Figures
+
+The following project figures are stored in `images/`:
+
+- `images/ATLAS System Architecture.png`
+- `images/Benchmark and Evaluation Flow.png`
+- `images/Ablation Summary Graphic.png`
+
+### ATLAS System Architecture
+
+![ATLAS System Architecture](images/ATLAS%20System%20Architecture.png)
+
+### Benchmark and Evaluation Flow
+
+![Benchmark and Evaluation Flow](images/Benchmark%20and%20Evaluation%20Flow.png)
+
+### Ablation Summary Graphic
+
+![Ablation Summary Graphic](images/Ablation%20Summary%20Graphic.png)

@@ -22,7 +22,11 @@ build/
 **/memory.jsonl
 
 # Non-code project assets
-images/
+images/*
+!images/
+!images/ATLAS System Architecture.png
+!images/Benchmark and Evaluation Flow.png
+!images/Ablation Summary Graphic.png
 poster sample/
 *.pdf
 !ATLAS.pdf
