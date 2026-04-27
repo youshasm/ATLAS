@@ -25,4 +25,5 @@ build/
 images/
 poster sample/
 *.pdf
+!ATLAS.pdf
 *.zip

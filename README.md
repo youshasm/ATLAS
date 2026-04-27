@@ -1,6 +1,19 @@
 # ATLAS Agentic System
 
-ATLAS is a runnable agentic tool-use prototype with a planner, caller, summarizer, shared episodic memory, verifier, adaptive coordinator, and evaluation harness.
+ATLAS (Adaptive Tool Learning with Agent Synthesis) is a modular tool-learning framework for small and medium LLMs. The project implements an end-to-end multi-component agent with memory, verification, and recovery so it can plan tool usage, execute actions, validate outputs, and improve robustness over repeated tasks.
+
+## What ATLAS Includes
+
+ATLAS is implemented as a runnable Python package with:
+
+- Planner: decomposes user intent into executable tool-use steps.
+- Caller / Tool Executor: performs tool invocations and captures observations.
+- Verifier: checks output validity and catches incorrect or malformed executions.
+- Recovery Policy: repairs parameters or triggers local re-planning after failures.
+- Summarizer: converts verified traces into final user-facing responses.
+- Shared Episodic Memory: stores successful traces and useful failure traces.
+- Adaptive Coordinator: routes tasks into `direct_call`, `single_plan`, or `iterative_plan`.
+- Evaluation and Benchmark Harness: runs ablations and produces report-ready outputs.
 
 Implemented architecture improvements include:
 
@@ -9,6 +22,21 @@ Implemented architecture improvements include:
 - recovery and re-planning loops for failed executions
 - configurable memory retrieval (`lexical`, `vector`, `hybrid`)
 - optional Ollama-based embeddings with automatic fallback to local hash embeddings
+
+## Core Design Goals
+
+- Reliability: prevent silent tool failures via verification and retry logic.
+- Efficiency: avoid unnecessary planning overhead through adaptive routing.
+- Learnability: reuse past trajectories through episodic memory retrieval.
+- Reproducibility: provide consistent CLI workflows for run, evaluate, benchmark, and report.
+
+## Repository Layout
+
+- `atlas_agent/atlas_agent/`: core framework modules (`core.py`, `memory.py`, `benchmark.py`, `datasets.py`, `reporting.py`, etc.)
+- `atlas_agent/tests/`: unit tests for runtime, memory, benchmarks, and dataset conversion
+- `atlas_agent/pyproject.toml`: package configuration
+- `atlas_agent/requirements.txt`: dependency list
+- `ATLAS.pdf`: project paper
 
 ## LLM choice
 
@@ -132,3 +160,9 @@ Supported `--source-format` values:
 - `generic`: same as auto but without dataset-specific assumptions
 - `apibank`: prefers API-Bank style keys (`instruction`, `question`, `tool_name`)
 - `toolbench`: prefers ToolBench-like key patterns
+
+## Paper
+
+Project paper is included at:
+
+- `ATLAS.pdf`
