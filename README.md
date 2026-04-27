@@ -2,6 +2,26 @@
 
 ATLAS (Adaptive Tool Learning with Agent Synthesis) is a modular tool-learning framework for small and medium LLMs. The project implements an end-to-end multi-component agent with memory, verification, and recovery so it can plan tool usage, execute actions, validate outputs, and improve robustness over repeated tasks.
 
+## Figures
+
+The following project figures are stored in `images/`:
+
+- `images/ATLAS System Architecture.png`
+- `images/Benchmark and Evaluation Flow.png`
+- `images/Ablation Summary Graphic.png`
+
+### ATLAS System Architecture
+
+![ATLAS System Architecture](images/ATLAS%20System%20Architecture.png)
+
+### Benchmark and Evaluation Flow
+
+![Benchmark and Evaluation Flow](images/Benchmark%20and%20Evaluation%20Flow.png)
+
+### Ablation Summary Graphic
+
+![Ablation Summary Graphic](images/Ablation%20Summary%20Graphic.png)
+
 ## What ATLAS Includes
 
 ATLAS is implemented as a runnable Python package with:
@@ -201,23 +221,3 @@ The following references are central to the ATLAS design and are included in `re
 - Park et al., 2023. MemGPT: Towards LLMs as Operating Systems.
 - Wu et al., 2023. AutoGen: Multi-Agent Conversation Framework.
 - Hong et al., 2023. MetaGPT: Multi-Agent Collaborative Framework.
-
-## Figures
-
-The following project figures are stored in `images/`:
-
-- `images/ATLAS System Architecture.png`
-- `images/Benchmark and Evaluation Flow.png`
-- `images/Ablation Summary Graphic.png`
-
-### ATLAS System Architecture
-
-![ATLAS System Architecture](images/ATLAS%20System%20Architecture.png)
-
-### Benchmark and Evaluation Flow
-
-![Benchmark and Evaluation Flow](images/Benchmark%20and%20Evaluation%20Flow.png)
-
-### Ablation Summary Graphic
-
-![Ablation Summary Graphic](images/Ablation%20Summary%20Graphic.png)
