@@ -1,0 +1,20 @@
+{
+  "few_shot_examples": [
+    {
+      "query": "Get me the current weather in San Francisco.",
+      "tool": "web_search",
+      "explanation": "Weather queries map to web_search"
+    },
+    {
+      "query": "Add note: project codename is Atlas-Phoenix.",
+      "tool": "text",
+      "explanation": "User asked to store text"
+    },
+    {
+      "query": "Compute 17 * 23",
+      "tool": "calculator",
+      "explanation": "Arithmetic maps to calculator"
+    }
+  ],
+  "prompt_template": "You are a router that maps user queries to the best tool. Tools: calculator, web_search, text, knowledge_base. Use examples and then output the tool name only.\n\\nExamples:\n{examples}\n\\nQuery: {query}\nTool:"
+}

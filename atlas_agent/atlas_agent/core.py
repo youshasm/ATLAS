@@ -11,11 +11,22 @@ from .llm import choose_step_with_llm
 from .memory import MemoryStore
 from .schemas import MemoryItem, Plan, PlanStep, ToolResult
 from .tools import CalculatorTool, KnowledgeBaseTool, TextTool, WebSearchStubTool
+import joblib
+from pathlib import Path
 
 
 class Planner:
     def __init__(self, config: AtlasConfig) -> None:
         self.config = config
+        # Attempt to load an optional router model to improve tool selection
+        self.router = None
+        try:
+            # router model is stored under project_root/atlas_agent/models/router.pkl
+            router_path = Path(__file__).resolve().parents[1] / 'models' / 'router.pkl'
+            if router_path.exists():
+                self.router = joblib.load(router_path)
+        except Exception:
+            self.router = None
 
     def plan(
         self,
@@ -62,6 +73,70 @@ class Planner:
             else:
                 notes = "Explicit tool request detected."
             # Continue below to allow adding follow-up steps (e.g., summarize web search) and memory refinement.
+
+        # If a small router model is available, prefer its prediction for tool selection
+        if self.router is not None and explicit is None:
+            try:
+                pred = self.router.predict([query])[0]
+                pred = str(pred)
+                # map prediction to known tool names
+                if pred in {"calculator", "web_search", "knowledge_base", "text"}:
+                    # choose appropriate arguments per tool
+                    if pred == "calculator":
+                        if _looks_like_arithmetic_query(query, lowered, tokens):
+                            steps.append(
+                                PlanStep(
+                                    id="step-1",
+                                    tool_name="calculator",
+                                    arguments={"expression": build_arithmetic_expression(query)},
+                                    purpose="Router-selected calculator",
+                                )
+                            )
+                        else:
+                            # fallback to calculator with raw expression
+                            steps.append(
+                                PlanStep(
+                                    id="step-1",
+                                    tool_name="calculator",
+                                    arguments={"expression": build_arithmetic_expression(query)},
+                                    purpose="Router-selected calculator (fallback)",
+                                )
+                            )
+                    elif pred == "web_search":
+                        steps.append(
+                            PlanStep(
+                                id="step-1",
+                                tool_name="web_search",
+                                arguments={"query": query},
+                                purpose="Router-selected web search",
+                            )
+                        )
+                    elif pred == "knowledge_base":
+                        steps.append(
+                            PlanStep(
+                                id="step-1",
+                                tool_name="knowledge_base",
+                                arguments={"query": query},
+                                purpose="Router-selected knowledge base",
+                            )
+                        )
+                    else:
+                        steps.append(
+                            PlanStep(
+                                id="step-1",
+                                tool_name="text",
+                                arguments={"message": query},
+                                purpose="Router-selected text fallback",
+                            )
+                        )
+                    if notes:
+                        notes = notes + " Router selected primary tool."
+                    else:
+                        notes = "Router selected primary tool."
+                    return Plan(query=query, steps=steps, notes=notes)
+            except Exception:
+                # if router prediction fails, continue with normal planner
+                pass
 
         llm_step = None
         if self.config.llm_backend != "rules":
