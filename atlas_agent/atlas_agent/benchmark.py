@@ -9,6 +9,9 @@ from typing import Any
 
 from .config import AtlasConfig, default_config
 from .core import AtlasAgent
+from .core import Planner, Caller, Summarizer, Verifier, _infer_preferred_tools, build_arithmetic_expression
+from .schemas import Plan, PlanStep
+from .utils.token_count import count_tokens
 
 
 BENCHMARK_CASES: list[dict[str, Any]] = [
@@ -92,6 +95,8 @@ class BenchmarkRow:
     tool_calls: int
     coordination_mode: str
     retries: int
+    latency_ms: float
+    estimated_tokens: int
 
 
 @dataclass
@@ -111,6 +116,8 @@ class VariantSummary:
     avg_tool_calls: float
     avg_retries: float
     iterative_mode_rate: float
+    avg_latency_ms: float
+    avg_estimated_tokens: float
 
 
 def run_benchmark(
@@ -124,6 +131,8 @@ def run_benchmark(
     embedding_model: str = "nomic-embed-text",
     include_no_memory: bool = True,
     include_no_verifier: bool = False,
+    include_react_baseline: bool = False,
+    include_decomposition_baseline: bool = False,
     cases: list[dict[str, Any]] | None = None,
     csv_path: Path | None = None,
     json_path: Path | None = None,
@@ -145,6 +154,16 @@ def run_benchmark(
         )
         _clear_file(full_config.memory_path)
         rows.extend(_run_variant("full", full_config, benchmark_cases))
+
+        if include_react_baseline:
+            react_config = replace(full_config, use_memory=False, use_verifier=False)
+            _clear_file(react_config.memory_path)
+            rows.extend(_run_react_baseline_variant("react_baseline", react_config, benchmark_cases))
+
+        if include_decomposition_baseline:
+            decomp_config = replace(full_config, use_memory=False, use_verifier=False)
+            _clear_file(decomp_config.memory_path)
+            rows.extend(_run_decomposition_baseline_variant("decomposition_baseline", decomp_config, benchmark_cases))
 
         if include_no_memory:
             no_mem_config = replace(full_config, use_memory=False)
@@ -171,17 +190,24 @@ def run_benchmark(
     return payload
 
 
-def _run_variant(variant: str, config: AtlasConfig, cases: list[dict[str, Any]]) -> list[BenchmarkRow]:
+def _run_variant(
+    variant: str,
+    config: AtlasConfig,
+    cases: list[dict[str, Any]],
+    forced_mode: str | None = None,
+) -> list[BenchmarkRow]:
     agent = AtlasAgent(config)
     out: list[BenchmarkRow] = []
     for case in cases:
-        result = agent.run(case["query"])
+        result = agent.run(case["query"], forced_mode=forced_mode)
         plan = result.get("plan", [])
         predicted_primary_tool = plan[0]["tool_name"] if plan else ""
         tool_calls = len(result.get("results", []))
         verified = bool(result.get("verified", False))
         coordination_mode = str(result.get("coordination_mode", ""))
         retries = int(result.get("retries", 0))
+        latency_ms = float(result.get("latency_ms", 0.0))
+        estimated_tokens = int(result.get("estimated_tokens", 0))
         expected_substring = str(case.get("expected_substring", ""))
         expected_verified = bool(case.get("expected_verified", True))
         summary_text = str(result.get("summary", ""))
@@ -212,6 +238,8 @@ def _run_variant(variant: str, config: AtlasConfig, cases: list[dict[str, Any]])
                 tool_calls=tool_calls,
                 coordination_mode=coordination_mode,
                 retries=retries,
+                latency_ms=latency_ms,
+                estimated_tokens=estimated_tokens,
             )
         )
     return out
@@ -255,6 +283,8 @@ def _summarize(rows: list[BenchmarkRow]) -> list[VariantSummary]:
                     sum(1 for item in items if item.coordination_mode == "iterative_plan"),
                     len(items),
                 ),
+                avg_latency_ms=mean(item.latency_ms for item in items),
+                avg_estimated_tokens=mean(item.estimated_tokens for item in items),
             )
         )
     return sorted(summaries, key=lambda item: (item.backend, item.memory_backend, item.embedding_provider, item.variant))
@@ -323,3 +353,150 @@ def _normalize_case(raw: Any, idx: int) -> dict[str, Any]:
         "expected_substring": expected_substring,
         "expected_verified": expected_verified,
     }
+
+
+def _run_react_baseline_variant(variant: str, config: AtlasConfig, cases: list[dict[str, Any]]) -> list[BenchmarkRow]:
+    caller = Caller()
+    summarizer = Summarizer()
+    verifier = Verifier()
+    out: list[BenchmarkRow] = []
+    for case in cases:
+        import time
+
+        started = time.perf_counter()
+        query = case["query"]
+        # pick a single primary tool based on simple heuristics
+        preferred = _infer_preferred_tools(query)
+        if preferred:
+            primary = next(iter(preferred))
+        else:
+            primary = "text"
+
+        # build a single-step plan
+        if primary == "calculator":
+            expr = build_arithmetic_expression(query)
+            step = PlanStep(id="step-1", tool_name="calculator", arguments={"expression": expr}, purpose="ReAct baseline direct call")
+        elif primary == "web_search":
+            step = PlanStep(id="step-1", tool_name="web_search", arguments={"query": query}, purpose="ReAct baseline direct call")
+        elif primary == "knowledge_base":
+            step = PlanStep(id="step-1", tool_name="knowledge_base", arguments={"query": query}, purpose="ReAct baseline direct call")
+        else:
+            step = PlanStep(id="step-1", tool_name="text", arguments={"message": query}, purpose="ReAct baseline direct call")
+
+        plan = Plan(query=query, steps=[step], notes="ReAct baseline (direct)")
+        result = caller.call(step)
+        results = [result]
+
+        if config.use_verifier:
+            verified, verify_reason = verifier.verify(plan, results)
+        else:
+            verified, verify_reason = True, "Verifier disabled"
+
+        summary = summarizer.summarize(query, plan, results, verified, verify_reason, 0)
+        latency = (time.perf_counter() - started) * 1000.0
+        est_tokens = count_tokens(query, config.llm_model) + count_tokens(summary, config.llm_model)
+
+        predicted_primary_tool = plan.steps[0].tool_name if plan.steps else ""
+        tool_calls = len(results)
+
+        expected_substring = str(case.get("expected_substring", ""))
+        expected_verified = bool(case.get("expected_verified", True))
+        expected_substring_match = True if not expected_substring else (expected_substring in summary)
+        expected_verified_match = verified == expected_verified
+        primary_tool_match = predicted_primary_tool == case["expected_primary_tool"]
+        case_pass = primary_tool_match and expected_substring_match and expected_verified_match
+
+        out.append(
+            BenchmarkRow(
+                variant=variant,
+                backend=config.llm_backend,
+                memory_backend=config.memory_backend,
+                embedding_provider=config.embedding_provider,
+                use_memory=config.use_memory,
+                use_verifier=config.use_verifier,
+                case_id=case["id"],
+                query=query,
+                expected_primary_tool=case["expected_primary_tool"],
+                expected_substring=expected_substring,
+                expected_verified=expected_verified,
+                predicted_primary_tool=predicted_primary_tool,
+                primary_tool_match=primary_tool_match,
+                verified=verified,
+                expected_substring_match=expected_substring_match,
+                expected_verified_match=expected_verified_match,
+                case_pass=case_pass,
+                step_count=len(plan.steps),
+                tool_calls=tool_calls,
+                coordination_mode="direct_call",
+                retries=0,
+                latency_ms=latency,
+                estimated_tokens=est_tokens,
+            )
+        )
+
+    return out
+
+
+def _run_decomposition_baseline_variant(variant: str, config: AtlasConfig, cases: list[dict[str, Any]]) -> list[BenchmarkRow]:
+    planner = Planner(config)
+    caller = Caller()
+    summarizer = Summarizer()
+    verifier = Verifier()
+    out: list[BenchmarkRow] = []
+    for case in cases:
+        import time
+
+        started = time.perf_counter()
+        query = case["query"]
+        # Plan using planner (no memory, no verifier in variant config)
+        plan = planner.plan(query, memory_context=[], mode="single_plan")
+        results = [caller.call(step) for step in plan.steps]
+
+        if config.use_verifier:
+            verified, verify_reason = verifier.verify(plan, results)
+        else:
+            verified, verify_reason = True, "Verifier disabled"
+
+        summary = summarizer.summarize(query, plan, results, verified, verify_reason, 0)
+        latency = (time.perf_counter() - started) * 1000.0
+        est_tokens = count_tokens(query, config.llm_model) + count_tokens(summary, config.llm_model)
+
+        predicted_primary_tool = plan.steps[0].tool_name if plan.steps else ""
+        tool_calls = len(results)
+
+        expected_substring = str(case.get("expected_substring", ""))
+        expected_verified = bool(case.get("expected_verified", True))
+        expected_substring_match = True if not expected_substring else (expected_substring in summary)
+        expected_verified_match = verified == expected_verified
+        primary_tool_match = predicted_primary_tool == case["expected_primary_tool"]
+        case_pass = primary_tool_match and expected_substring_match and expected_verified_match
+
+        out.append(
+            BenchmarkRow(
+                variant=variant,
+                backend=config.llm_backend,
+                memory_backend=config.memory_backend,
+                embedding_provider=config.embedding_provider,
+                use_memory=config.use_memory,
+                use_verifier=config.use_verifier,
+                case_id=case["id"],
+                query=query,
+                expected_primary_tool=case["expected_primary_tool"],
+                expected_substring=expected_substring,
+                expected_verified=expected_verified,
+                predicted_primary_tool=predicted_primary_tool,
+                primary_tool_match=primary_tool_match,
+                verified=verified,
+                expected_substring_match=expected_substring_match,
+                expected_verified_match=expected_verified_match,
+                case_pass=case_pass,
+                step_count=len(plan.steps),
+                tool_calls=tool_calls,
+                coordination_mode="single_plan",
+                retries=0,
+                latency_ms=latency,
+                estimated_tokens=est_tokens,
+            )
+        )
+
+    return out

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import ast
 import json
 import random
 import re
 from pathlib import Path
 from typing import Any
+
+import pandas as pd
 
 
 ALLOWED_TOOLS = {"calculator", "knowledge_base", "web_search", "text"}
@@ -34,7 +37,19 @@ def _load_records(source_path: Path) -> list[Any]:
     if not source_path.exists():
         raise FileNotFoundError(f"Dataset file not found: {source_path}")
 
+    if source_path.is_dir():
+        parquet_files = sorted(source_path.glob("*.parquet"))
+        if parquet_files:
+            records: list[Any] = []
+            for parquet_file in parquet_files:
+                records.extend(pd.read_parquet(parquet_file).to_dict(orient="records"))
+            return records
+
     suffix = source_path.suffix.lower()
+
+    if suffix in {".parquet", ".pq"}:
+        return pd.read_parquet(source_path).to_dict(orient="records")
+
     raw_text = source_path.read_text(encoding="utf-8")
 
     if suffix == ".json":
@@ -57,7 +72,7 @@ def _load_records(source_path: Path) -> list[Any]:
             out.append(json.loads(line))
         return out
 
-    raise ValueError("Unsupported file format. Use .json, .jsonl, or .ndjson")
+    raise ValueError("Unsupported file format. Use .json, .jsonl, .ndjson, or .parquet")
 
 
 def _normalize_external_record(record: Any, idx: int, source_format: str) -> dict[str, Any] | None:
@@ -72,14 +87,26 @@ def _normalize_external_record(record: Any, idx: int, source_format: str) -> dic
     expected_substring = _extract_expected_substring(record)
     expected_verified = bool(record.get("expected_verified", True))
     case_id = str(record.get("id") or record.get("uid") or record.get("qid") or f"ext_case_{idx + 1}")
+    api_names = _extract_toolbench_api_names(record) if source_format == "toolbench" else []
 
-    return {
+    if source_format == "toolbench" and api_names:
+        expected_tool = "web_search"
+        expected_substring = " | ".join(api_names[:2]) if len(api_names) > 1 else api_names[0]
+
+    case = {
         "id": case_id,
         "query": query,
         "expected_primary_tool": expected_tool,
         "expected_substring": expected_substring,
         "expected_verified": expected_verified,
     }
+
+    if api_names:
+        case["expected_api_names"] = api_names
+        case["api_count"] = len(api_names)
+        case["domain"] = str(record.get("domain", ""))
+
+    return case
 
 
 def _extract_query(record: dict[str, Any], source_format: str) -> str:
@@ -114,6 +141,35 @@ def _extract_query(record: dict[str, Any], source_format: str) -> str:
                 if isinstance(content, str) and content.strip():
                     return content.strip()
     return ""
+
+
+def _extract_toolbench_api_names(record: dict[str, Any]) -> list[str]:
+    raw_api_list = record.get("api_list")
+    api_list: Any = raw_api_list
+
+    if isinstance(raw_api_list, str):
+        raw_api_list = raw_api_list.strip()
+        if not raw_api_list:
+            return []
+        try:
+            api_list = ast.literal_eval(raw_api_list)
+        except Exception:
+            try:
+                api_list = json.loads(raw_api_list)
+            except Exception:
+                return []
+
+    if not isinstance(api_list, list):
+        return []
+
+    names: list[str] = []
+    for item in api_list:
+        if not isinstance(item, dict):
+            continue
+        api_name = item.get("api_name") or item.get("name") or item.get("api")
+        if isinstance(api_name, str) and api_name.strip():
+            names.append(api_name.strip())
+    return names
 
 
 def _extract_tool(record: dict[str, Any]) -> str:

@@ -48,6 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--embedding-model", default="nomic-embed-text")
     benchmark_parser.add_argument("--include-no-memory", action="store_true")
     benchmark_parser.add_argument("--include-no-verifier", action="store_true")
+    benchmark_parser.add_argument("--include-react-baseline", action="store_true")
+    benchmark_parser.add_argument("--include-decomposition-baseline", action="store_true")
     benchmark_parser.add_argument("--cases-path", default="", help="Optional path to custom benchmark cases (.json/.jsonl)")
     benchmark_parser.add_argument("--csv-path", default="data/benchmark_rows.csv")
     benchmark_parser.add_argument("--json-path", default="data/benchmark_summary.json")
@@ -114,6 +116,8 @@ def main() -> None:
             embedding_model=args.embedding_model,
             include_no_memory=args.include_no_memory,
             include_no_verifier=args.include_no_verifier,
+            include_react_baseline=args.include_react_baseline,
+            include_decomposition_baseline=args.include_decomposition_baseline,
             cases=cases,
             csv_path=Path(args.csv_path),
             json_path=Path(args.json_path),

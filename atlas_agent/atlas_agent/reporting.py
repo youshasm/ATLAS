@@ -16,9 +16,9 @@ def generate_markdown_report(csv_path: Path, json_path: Path, out_path: Path) ->
     lines.append("## Summary Table")
     lines.append("")
     lines.append(
-        "| Variant | Backend | Memory Backend | Embedding | Memory | Verifier | Cases | Verified Rate | Tool Match Rate | Substring Match Rate | Case Pass Rate | Avg Steps | Avg Tool Calls | Avg Retries | Iterative Rate |"
+        "| Variant | Backend | Memory Backend | Embedding | Memory | Verifier | Cases | Verified Rate | Tool Match Rate | Substring Match Rate | Case Pass Rate | Avg Steps | Avg Tool Calls | Avg Retries | Iterative Rate | Avg Latency (ms) | Avg Est. Tokens |"
     )
-    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for item in summaries:
         lines.append(
             f"| {item.get('variant')} | {item.get('backend')} | {item.get('memory_backend')} | {item.get('embedding_provider')} | "
@@ -26,7 +26,8 @@ def generate_markdown_report(csv_path: Path, json_path: Path, out_path: Path) ->
             f"{item.get('cases')} | {float(item.get('success_rate', 0.0)):.2f} | {float(item.get('primary_tool_match_rate', 0.0)):.2f} | "
             f"{float(item.get('expected_substring_match_rate', 0.0)):.2f} | {float(item.get('case_pass_rate', 0.0)):.2f} | "
             f"{float(item.get('avg_steps', 0.0)):.2f} | {float(item.get('avg_tool_calls', 0.0)):.2f} | "
-            f"{float(item.get('avg_retries', 0.0)):.2f} | {float(item.get('iterative_mode_rate', 0.0)):.2f} |"
+            f"{float(item.get('avg_retries', 0.0)):.2f} | {float(item.get('iterative_mode_rate', 0.0)):.2f} | "
+            f"{float(item.get('avg_latency_ms', 0.0)):.1f} | {float(item.get('avg_estimated_tokens', 0.0)):.1f} |"
         )
 
     lines.append("")

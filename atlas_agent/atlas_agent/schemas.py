@@ -10,6 +10,7 @@ class PlanStep:
     tool_name: str
     arguments: dict[str, Any] = field(default_factory=dict)
     purpose: str = ""
+    function_name: str = ""  # Specific API function being called (e.g., "GetInsuranceInfo")
 
 
 @dataclass
